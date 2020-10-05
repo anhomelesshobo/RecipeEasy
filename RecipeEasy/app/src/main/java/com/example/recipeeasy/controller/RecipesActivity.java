@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
+import com.example.recipeeasy.api.RecipesFetchListener;
 import com.example.recipeeasy.databinding.ActivityRecipesBinding;
 import com.example.recipeeasy.model.Recipe;
 import com.example.recipeeasy.model.RecipesService;
@@ -30,10 +31,7 @@ public class RecipesActivity extends AppCompatActivity implements  OnRecipeClick
         return  UserService.getInstance().getCurrentUser().getId();
     }
 
-    private ArrayList<Recipe> getUserRecipes()
-    {
-        return RecipesService.getInstance().getAll(getCurrentUserId());
-    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,8 +43,10 @@ public class RecipesActivity extends AppCompatActivity implements  OnRecipeClick
         binding.recyclerRecipes.addItemDecoration(new DividerItemDecoration(this,DividerItemDecoration.VERTICAL));
         binding.recyclerRecipes.setLayoutManager(new LinearLayoutManager(this));
 
-        recipesAdapter = new RecipesAdapter(getUserRecipes(),this);
+        recipesAdapter = new RecipesAdapter(this);
         binding.recyclerRecipes.setAdapter(recipesAdapter);
+
+        refresh();
 
         binding.fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -73,7 +73,24 @@ public class RecipesActivity extends AppCompatActivity implements  OnRecipeClick
 
     }
 
+        private void refresh(){
 
+            RecipesService.getInstance().getAll(getCurrentUserId(), new RecipesFetchListener() {
+                @Override
+                public void onResponse(ArrayList<Recipe> recipes) {
+
+                    if (recipes != null) {
+                        recipesAdapter.setRecipes(recipes);
+                        recipesAdapter.notifyDataSetChanged();
+                    } else
+                    {
+                        Toast.makeText(RecipesActivity.this, "Could not load Recipes", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }, this);
+
+
+        }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
@@ -81,8 +98,7 @@ public class RecipesActivity extends AppCompatActivity implements  OnRecipeClick
 
         if(resultCode == RESULT_OK && (requestCode == ADD_RECIPE_REQUEST || requestCode == EDIT_RECIPE_REQUEST))
         {
-            recipesAdapter.setRecipes(getUserRecipes());
-            recipesAdapter.notifyDataSetChanged();
+            refresh();
         }
     }
 

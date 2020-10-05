@@ -1,21 +1,28 @@
 package com.example.recipeeasy.model;
 
+import android.content.Context;
+
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.example.recipeeasy.api.MarthaQueue;
+import com.example.recipeeasy.api.MarthaRequest;
+import com.example.recipeeasy.api.RecipeRequestListener;
+import com.example.recipeeasy.api.RecipesFetchListener;
+import com.example.recipeeasy.api.UserRequestListener;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 
 public class RecipesService {
     private static RecipesService instance;
 
-    private HashMap<Integer, HashMap<Integer, Recipe>> recipes;
-    private int autoIncrement;
+
 
     private RecipesService() {
-        recipes = new HashMap<>();
-
-        add("breakfast", "A", 0, 20, "aaa a aaaaaa", 0);
-        add("lunch", "B", 1, 30, "bbbbbb bb b bbb", 0);
-        add("dinner", "C", 6, 0, "c ccc ccccc cc", 0);
-        add("lunch", "D", 0, 5, "dd", 1);
     }
 
     public static RecipesService getInstance() {
@@ -26,48 +33,126 @@ public class RecipesService {
         return instance;
     }
 
-    public ArrayList<Recipe> getAll(int userId) {
-        if (recipes.containsKey(userId)) {
-            return new ArrayList<Recipe>(recipes.get(userId).values());
-        } else {
-            return new ArrayList<>();
+    public void getAll(int userId, final RecipesFetchListener listener, Context context) {
+        JSONObject fetchParams = new JSONObject();
+        try {
+            fetchParams.put("id",userId);
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
+
+        MarthaRequest fetchRequest = new MarthaRequest("select-recipes", fetchParams, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                try {
+                    JSONArray data = response.getJSONArray("data");
+                    ArrayList<Recipe> recipes = new ArrayList<>();
+
+                    for (int i = 0; i < data.length(); i++)
+                    {
+                        recipes.add(new Recipe(data.getJSONObject(i)));
+
+                    }
+
+                    listener.onResponse(recipes);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    listener.onResponse(null);
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.onResponse(null);
+            }
+        });
+
+        MarthaQueue.getInstance(context).send(fetchRequest);
+
     }
 
-    public boolean add(String category, String name, int hours, int minutes, String description, int userId) {
+    public void add(String category, String name, int hours, int minutes, String description, int userId, final RecipeRequestListener listener, Context context) {
         if (isInvalid(category, name, hours, minutes, description)) {
-            return false;
-        } else {
-            Recipe newRecipe = new Recipe(autoIncrement, category, name, hours, minutes, description);
-            autoIncrement++;
+            listener.onResponse(false);
+        }else {
+            JSONObject recipeParams = new JSONObject();
+            try {
+                buildRecipeParams(recipeParams, category, name, hours, minutes, description);
+                recipeParams.put("user_id", userId);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            sendRequest("insert-recipe", recipeParams, listener, context);
+        }
 
-            if (recipes.containsKey(userId)) {
-                recipes.get(userId).put(newRecipe.getId(), newRecipe);
-            } else {
-                HashMap<Integer, Recipe> userRecipes = new HashMap<>();
-                userRecipes.put(newRecipe.getId(), newRecipe);
 
-                recipes.put(userId, userRecipes);
+    }
+
+    private void buildRecipeParams(JSONObject params,String category, String name, int hours, int minutes, String description) throws JSONException {
+        params.put("category",category);
+        params.put("name",name);
+        params.put("duration_hours",hours);
+        params.put("duration_minutes",minutes);
+        params.put("description",description);
+    }
+
+    public void edit(final int recipeId, String category, String name, int hours, int minutes, String description, RecipeRequestListener listener, Context context) {
+        if (isInvalid(category, name, hours, minutes, description)) {
+            listener.onResponse(false);
+        } else
+        {
+            JSONObject editParams = new JSONObject();
+            try {
+                editParams.put("id",recipeId);
+                buildRecipeParams(editParams,category, name, hours, minutes, description);
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
 
-            return true;
+            sendRequest("update-recipe", editParams, listener, context);
         }
+
+
     }
 
-    public boolean edit(final int recipeId, String category, String name, int hours, int minutes, String description, int currentUserId) {
-        if (isInvalid(category, name, hours, minutes, description)) {
-            return false;
-        } else {
-            recipes.get(currentUserId).get(recipeId).update(category, name, hours, minutes, description);
-            return true;
-        }
-    }
+
+
 
     private boolean isInvalid(String category, String name, int hours, int minutes, String description) {
         return category == null || name.isEmpty() || description.isEmpty() || (hours == 0 && minutes == 0);
     }
 
-    public void delete(int recipeId, int currentUserId) {
-        recipes.get(currentUserId).remove(recipeId);
+    public void delete(int recipeId, RecipeRequestListener listener, Context context) {
+        JSONObject deleteParams = new JSONObject();
+        try {
+            deleteParams.put("id",recipeId);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        sendRequest("delete-recipe", deleteParams, listener, context);
+
+    }
+
+    private void sendRequest(String query, JSONObject recipeParams, final RecipeRequestListener listener, Context context) {
+        MarthaRequest addRequest = new MarthaRequest(query, recipeParams, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                try {
+                    boolean success =  response.getBoolean("success");
+                    listener.onResponse(success);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    listener.onResponse(false);
+                }
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.onResponse(false);
+            }
+        });
+
+        MarthaQueue.getInstance(context).send(addRequest);
     }
 }

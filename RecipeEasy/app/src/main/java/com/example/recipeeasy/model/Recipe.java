@@ -3,6 +3,9 @@ package com.example.recipeeasy.model;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public class Recipe implements Parcelable {
     private int id;
     private String name;
@@ -10,6 +13,15 @@ public class Recipe implements Parcelable {
     private int durationHours;
     private int durationMinutes;
     private String description;
+
+    public Recipe(JSONObject recipesJson) throws JSONException {
+        this.id = recipesJson.getInt("id");
+        this.name = recipesJson.getString("name");
+        this.category = recipesJson.getString("category");
+        this.durationHours = recipesJson.getInt("duration_hours");
+        this.durationMinutes = recipesJson.getInt("duration_minutes");
+        this.description = recipesJson.getString("description");
+    }
 
     public int getId() {
         return id;

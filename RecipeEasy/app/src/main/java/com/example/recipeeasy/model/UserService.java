@@ -1,12 +1,22 @@
 package com.example.recipeeasy.model;
 
+import android.content.Context;
+
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.example.recipeeasy.api.MarthaQueue;
+import com.example.recipeeasy.api.MarthaRequest;
+import com.example.recipeeasy.api.UserRequestListener;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.HashMap;
 
 public class UserService {
     private static UserService instance = null;
 
-    private HashMap<String, User> users;
-    private int autoIncrement;
+
     private User currentUser;
 
     public User getCurrentUser() {
@@ -14,17 +24,11 @@ public class UserService {
     }
 
     private UserService() {
-        users = new HashMap<>();
-        autoIncrement = 0;
+
 
         currentUser = null;
 
-        // seeding data
-        users.put("a", new User(autoIncrement, "a", "a"));
-        autoIncrement++;
 
-        users.put("b", new User(autoIncrement, "b", "b"));
-        autoIncrement++;
     }
 
     public static UserService getInstance() {
@@ -35,30 +39,80 @@ public class UserService {
         return instance;
     }
 
-    public boolean logIn(String username, String password) {
-        User user = users.get(username);
-
-        if (user != null && user.passwordMatch(password)) {
-            currentUser = user;
-
-            return true;
-        } else {
-            return false;
+    public void logIn(String username, String password, final UserRequestListener listener, Context context) {
+        JSONObject loginParams = new JSONObject();
+        try {
+            loginParams.put("username", username);
+            loginParams.put("password", password);
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
+
+        MarthaRequest loginRequest = new MarthaRequest("select-user-login", loginParams, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                try {
+                    JSONObject userJson = response.getJSONArray("data").getJSONObject(0);
+
+                    currentUser = new User(userJson);
+
+                    listener.onResponse(true);
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    listener.onResponse(false);
+                }
+
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                listener.onResponse(false);
+            }
+        });
+
+        MarthaQueue.getInstance(context).send(loginRequest);
     }
 
-    public boolean signUp(String username, String password) {
-        if (username.isEmpty() || password.isEmpty() || users.containsKey(username)) {
-            return false;
+    public void signUp(final String username, String password , final UserRequestListener listener, Context context) {
+
+        if (username.isEmpty() || password.isEmpty()) {
+            listener.onResponse(false);
         } else {
-            User newUser = new User(autoIncrement, username, password);
 
-            users.put(username, newUser);
-            autoIncrement++;
+            JSONObject signupParams = new JSONObject();
+            try {
+                signupParams.put("username", username);
+                signupParams.put("password", password);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
 
-            currentUser = newUser;
+            MarthaRequest signupRequest = new MarthaRequest("insert-user-signup", signupParams, new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+                    try {
+                        int id = response.getInt("lastInsertId");
 
-            return true;
+                        currentUser = new User(id, username);
+
+                        listener.onResponse(true);
+
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                        listener.onResponse(false);
+                    }
+
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    listener.onResponse(false);
+                }
+            });
+
+            MarthaQueue.getInstance(context).send(signupRequest);
+
         }
     }
 

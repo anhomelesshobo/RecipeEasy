@@ -19,8 +19,8 @@ public class RecipesAdapter extends RecyclerView.Adapter<RecipesAdapter.RecipeVi
     private final OnRecipeClickListener recipeClickListener;
     private ArrayList<Recipe> recipes;
 
-    public RecipesAdapter(ArrayList<Recipe> userRecipes, OnRecipeClickListener recipeClickListener) {
-        this.recipes = userRecipes;
+    public RecipesAdapter( OnRecipeClickListener recipeClickListener) {
+        this.recipes = new ArrayList<>();
         this.recipeClickListener = recipeClickListener;
     }
 
@@ -60,10 +60,10 @@ public class RecipesAdapter extends RecyclerView.Adapter<RecipesAdapter.RecipeVi
 
         public void bind(final Recipe recipe) {
 
-            if(recipe.getCategory() == "breakfast") {
+            if(recipe.getCategory().compareTo("breakfast") == 0) {
 
                 binding.imageCategory.setImageResource(R.drawable.img_breakfast);
-            }else if(recipe.getCategory() == "lunch")
+            }else if(recipe.getCategory().compareTo("lunch") == 0)
             {
                 binding.imageCategory.setImageResource(R.drawable.img_lunch);
             }else

@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.RadioButton;
 import android.widget.Toast;
 
+import com.example.recipeeasy.api.RecipeRequestListener;
 import com.example.recipeeasy.databinding.ActivityRecipeBinding;
 import com.example.recipeeasy.model.Recipe;
 import com.example.recipeeasy.model.RecipesService;
@@ -76,8 +77,7 @@ public class RecipeActivity extends AppCompatActivity {
             binding.buttonDelete.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    RecipesService.getInstance().delete(recipeId, getUserId());
-                    finishOK();
+                    RecipesService.getInstance().delete(recipeId, recipeRequestListener, RecipeActivity.this);
                 }
             });
         }else {
@@ -94,20 +94,26 @@ public class RecipeActivity extends AppCompatActivity {
 
     private View.OnClickListener addClickListener = new View.OnClickListener() {
         public void onClick(View v) {
+            RecipesService.getInstance().add(getCategory(), getName(), getDurationHours(), getDurationMinutes(), getDescription(), getUserId(), recipeRequestListener , RecipeActivity.this);
 
-            if (RecipesService.getInstance().add(getCategory(), getName(), getDurationHours(), getDurationMinutes(), getDescription(), getUserId())) {
-               finishOK();
-            } else
-            {
-                Toast.makeText(RecipeActivity.this,"Invalid infos...",Toast.LENGTH_SHORT).show();
-            }
+
+
         }
     };
 
     private View.OnClickListener editClickListener = new View.OnClickListener() {
         public void onClick(View v) {
 
-            if (RecipesService.getInstance().edit(recipeId, getCategory(), getName(), getDurationHours(), getDurationMinutes(), getDescription(), getUserId())) {
+            RecipesService.getInstance().edit(recipeId, getCategory(), getName(), getDurationHours(), getDurationMinutes(), getDescription(), recipeRequestListener , RecipeActivity.this);
+
+
+        }
+    };
+
+    private RecipeRequestListener recipeRequestListener = new RecipeRequestListener() {
+        @Override
+        public void onResponse(boolean success) {
+            if (success) {
                 finishOK();
             } else
             {
